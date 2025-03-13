@@ -1,0 +1,38 @@
+# Configuration file for local vector search
+# Copy this file to config.yaml and update with your specific values
+
+# OpenAI API Configuration
+openai:
+  api_key: "your-openai-api-key-here"
+  model: "text-embedding-3-small"  # OpenAI embedding model to use
+  maximum_tokens: 8192
+
+# ChromaDB Configuration
+chromadb:
+  path: "./chroma_db"  # Path to store the ChromaDB
+  collection_name: "file_embeddings"  # Name of the collection to store embeddings
+
+# File Processing Configuration
+file_processing:
+  # File extensions to consider as text-based files
+  text_extensions:
+    - ".txt"
+    - ".md"
+    - ".csv"
+    - ".ini"
+    - ".js"
+    - ".py"
+    - ".json"
+    - ".html"
+    - ".css"
+    - ".xml"
+    - ".yaml"
+    - ".yml"
+  # Maximum file size in KB to process (to avoid very large files)
+  max_file_size_kb: 1024000
+  # Directories to exclude from traversal (relative to parent directory)
+  exclude_dirs:
+    - "venv"
+    - ".git"
+    - "__pycache__"
+    - "node_modules" 
