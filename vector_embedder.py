@@ -166,8 +166,7 @@ class VectorEmbedder:
                 collection = client.create_collection(name=collection_name)
                 logger.info(f"Created new collection: {collection_name}")
 
-            # Before we start, let's vacuum the database
-            collection.vacuum()
+            # TODO: vacuum the database before we start
                 
             return client, collection
         except Exception as e:
@@ -233,19 +232,22 @@ class VectorEmbedder:
             tiktoken.Encoding: Encoder instance for the specified model
         """
         try:
-            model = self.config['huggingface']['model']
-            # Get the encoding for the specified model
-            return tiktoken.encoding_for_model(model)
+            # Get tokenizer name from config, default to "cl100k_base" if not specified
+            tokenizer_name = self.config['huggingface'].get('tokenizer', "cl100k_base")
+            logger.info(f"Using {tokenizer_name} tokenizer for token counting")
+            
+            # Get the encoding based on the configured tokenizer
+            return tiktoken.get_encoding(tokenizer_name)
         except Exception as e:
-            logger.warning(f"Could not get specific encoding for model {model}: {e}")
-            # Fall back to cl100k_base encoding which is used by most newer models
-            return tiktoken.get_encoding("cl100k_base")
+            logger.warning(f"Could not initialize tokenizer: {e}")
+            # Return a minimal encoder that won't crash but will approximate tokens
+            return None
     
     def truncate_text_by_tokens(self, text: str, max_tokens: int) -> str:
         """
         Truncate text to specified maximum token count.
         
-        This ensures text stays within OpenAI's token limits.
+        This ensures text stays within token limits for embedding models.
         
         Args:
             text (str): Text to truncate
@@ -255,6 +257,13 @@ class VectorEmbedder:
             str: Truncated text if it exceeds token limit, original text otherwise
         """
         try:
+            if self.tiktoken_encoder is None:
+                # Fallback approximation: ~4 chars per token for English text
+                if len(text) <= max_tokens * 4:
+                    return text
+                logger.warning("Using character-based approximation for token truncation")
+                return text[:max_tokens * 4]
+                
             # Encode the text to tokens
             tokens = self.tiktoken_encoder.encode(text)
             token_count = len(tokens)
@@ -270,9 +279,9 @@ class VectorEmbedder:
             logger.info(f"Text truncated from {token_count} to {max_tokens} tokens")
             return truncated_text
         except Exception as e:
-            logger.error(f"Error truncating text: {e}")
-            # Return original text if truncation fails
-            return text
+            logger.warning(f"Error during text truncation: {e}")
+            # Simple fallback: truncate by characters (approximate)
+            return text[:max_tokens * 4]
     
     def get_embedding(self, text: str) -> List[float]:
         """

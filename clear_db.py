@@ -101,12 +101,17 @@ def clear_database():
             # Recreate an empty collection
             client.create_collection(name=collection_name)
             logger.info(f"Created new empty collection: {collection_name}")
+
             
         except Exception as e:
             logger.error(f"Collection does not exist or could not be deleted: {e}")
     
     except Exception as e:
         logger.error(f"Error clearing database: {e}")
+    
+    # now, vacuum the database
+    client.vacuum()
+    logger.info("Database vacuumed")
 
 if __name__ == "__main__":
     logger.info("Starting database clearing process")

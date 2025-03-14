@@ -3,9 +3,9 @@
 
 # Embedding Model Configuration
 huggingface:
-  model: "Salesforce/SFR-Embedding-Mistral"  # Hugging Face embedding model to use
-  maximum_tokens: 8192
-  # No API key required for local model inference
+  model: "BAAI/bge-large-en-v1.5"  # Replace with your chosen model
+  use_gpu: true
+  maximum_tokens: 8192 
 
 # ChromaDB Configuration
 chromadb:
