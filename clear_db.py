@@ -2,7 +2,21 @@
 """
 Clear ChromaDB Database
 
-This script clears the ChromaDB collection used by vector_embedder.py
+This script clears the ChromaDB collection used by vector_embedder.py by completely
+deleting the collection and recreating it from scratch. This effectively removes
+all vector embeddings, document references, and metadata from the database.
+
+Use this script when you want to:
+- Reset your vector database completely
+- Fix issues with corrupted data
+- Start a fresh embedding process
+
+Usage:
+    python clear_db.py
+
+Requirements:
+    - ChromaDB (for vector storage)
+    - Configuration file (config.yaml) with ChromaDB settings
 """
 
 import yaml
@@ -23,7 +37,19 @@ logging.basicConfig(
 logger = logging.getLogger('clear_db')
 
 def load_config(config_path: str = "config.yaml"):
-    """Load configuration from YAML file."""
+    """
+    Load configuration from YAML file.
+    
+    Args:
+        config_path (str): Path to the YAML configuration file
+                           Defaults to "config.yaml" in the current directory
+    
+    Returns:
+        dict: Configuration dictionary
+    
+    Raises:
+        SystemExit: If the file is not found or contains invalid YAML
+    """
     try:
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
@@ -37,7 +63,21 @@ def load_config(config_path: str = "config.yaml"):
         sys.exit(1)
 
 def clear_database():
-    """Clear the ChromaDB database."""
+    """
+    Clear the ChromaDB database by deleting and recreating the collection.
+    
+    This function:
+    1. Loads the configuration from config.yaml
+    2. Connects to the ChromaDB instance
+    3. Deletes the specified collection completely
+    4. Creates a new empty collection with the same name
+    
+    This is a more aggressive option than clear_documents.py, which only 
+    removes documents but keeps the collection structure intact.
+    
+    Returns:
+        None
+    """
     config = load_config()
     
     try:

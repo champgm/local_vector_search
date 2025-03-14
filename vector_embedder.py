@@ -4,6 +4,21 @@ Vector Embedder Script
 
 This script traverses directories, generates vector embeddings for text-based files,
 and stores them in a ChromaDB database for vector similarity search.
+
+Features:
+- Recursively traverses directories to process text files
+- Generates vector embeddings using OpenAI's embedding models
+- Stores embeddings in ChromaDB for efficient similarity search
+- Skips previously processed files that haven't changed
+- Configurable via YAML configuration file
+
+Usage:
+    python vector_embedder.py
+
+Requirements:
+    - OpenAI API key (configured in config.yaml)
+    - ChromaDB for vector storage
+    - See requirements.txt for all dependencies
 """
 
 import os
@@ -30,10 +45,33 @@ logging.basicConfig(
 logger = logging.getLogger('vector_embedder')
 
 class VectorEmbedder:
-    """Handles embedding generation and storage for files."""
+    """
+    Handles embedding generation and storage for files.
+    
+    This class is responsible for traversing directories, processing text files,
+    generating vector embeddings via OpenAI, and storing them in ChromaDB.
+    
+    Attributes:
+        config (dict): Configuration loaded from YAML file
+        openai_client: OpenAI client instance
+        chroma_client: ChromaDB client instance
+        collection: ChromaDB collection for storing embeddings
+        project_dir (Path): Current working directory
+        parent_dir (Path): Parent directory to start traversal from
+        tiktoken_encoder: Tokenizer for counting and truncating tokens
+    """
     
     def __init__(self, config_path: str = "config.yaml"):
-        """Initialize with configuration from YAML file."""
+        """
+        Initialize the VectorEmbedder with configuration from YAML file.
+        
+        Args:
+            config_path (str): Path to the YAML configuration file
+                               Defaults to "config.yaml" in the current directory
+        
+        Raises:
+            SystemExit: If the configuration file is missing or invalid
+        """
         self.config = self._load_config(config_path)
         self.openai_client = self._init_openai_client()
         self.chroma_client, self.collection = self._init_chromadb()
@@ -42,7 +80,18 @@ class VectorEmbedder:
         self.tiktoken_encoder = self._init_tiktoken_encoder()
         
     def _load_config(self, config_path: str) -> Dict[str, Any]:
-        """Load configuration from YAML file."""
+        """
+        Load configuration from YAML file.
+        
+        Args:
+            config_path (str): Path to the YAML configuration file
+            
+        Returns:
+            Dict[str, Any]: Configuration dictionary
+            
+        Raises:
+            SystemExit: If the file is not found or contains invalid YAML
+        """
         try:
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
@@ -57,7 +106,15 @@ class VectorEmbedder:
             sys.exit(1)
             
     def _init_openai_client(self) -> Any:
-        """Initialize OpenAI client with API key from config."""
+        """
+        Initialize OpenAI client with API key from config.
+        
+        Returns:
+            Any: OpenAI client instance
+            
+        Raises:
+            SystemExit: If the API key is missing or invalid
+        """
         try:
             api_key = self.config['openai']['api_key']
             if api_key == "your-openai-api-key-here":
@@ -71,7 +128,15 @@ class VectorEmbedder:
             sys.exit(1)
     
     def _init_chromadb(self):
-        """Initialize ChromaDB client and collection."""
+        """
+        Initialize ChromaDB client and collection.
+        
+        Returns:
+            tuple: (ChromaDB client, ChromaDB collection)
+            
+        Raises:
+            SystemExit: If ChromaDB initialization fails
+        """
         try:
             db_path = self.config['chromadb']['path']
             collection_name = self.config['chromadb']['collection_name']
@@ -96,17 +161,43 @@ class VectorEmbedder:
             sys.exit(1)
     
     def _get_file_id(self, file_path: Path) -> str:
-        """Generate a unique ID for a file based on its relative path."""
+        """
+        Generate a unique ID for a file based on its relative path.
+        
+        Args:
+            file_path (Path): Path to the file
+            
+        Returns:
+            str: Unique identifier for the file
+        """
         rel_path = file_path.relative_to(self.parent_dir)
         return str(rel_path)
     
     def _is_text_file(self, file_path: Path) -> bool:
-        """Check if a file is a text-based file based on its extension."""
+        """
+        Check if a file is a text-based file based on its extension.
+        
+        Args:
+            file_path (Path): Path to the file
+            
+        Returns:
+            bool: True if the file is a text file, False otherwise
+        """
         extensions = self.config['file_processing']['text_extensions']
         return file_path.suffix.lower() in extensions
     
     def _should_exclude_dir(self, dir_path: Path) -> bool:
-        """Check if a directory should be excluded from traversal."""
+        """
+        Check if a directory should be excluded from traversal.
+        
+        This helps skip directories like .git, __pycache__, node_modules, etc.
+        
+        Args:
+            dir_path (Path): Path to the directory
+            
+        Returns:
+            bool: True if the directory should be excluded, False otherwise
+        """
         exclude_dirs = self.config['file_processing']['exclude_dirs']
         
         # Skip the project directory itself
@@ -121,7 +212,12 @@ class VectorEmbedder:
         return False
     
     def _init_tiktoken_encoder(self):
-        """Initialize tiktoken encoder for token counting."""
+        """
+        Initialize tiktoken encoder for token counting.
+        
+        Returns:
+            tiktoken.Encoding: Encoder instance for the specified model
+        """
         try:
             model = self.config['openai']['model']
             # Get the encoding for the specified model
@@ -132,7 +228,18 @@ class VectorEmbedder:
             return tiktoken.get_encoding("cl100k_base")
     
     def truncate_text_by_tokens(self, text: str, max_tokens: int) -> str:
-        """Truncate text to specified maximum token count."""
+        """
+        Truncate text to specified maximum token count.
+        
+        This ensures text stays within OpenAI's token limits.
+        
+        Args:
+            text (str): Text to truncate
+            max_tokens (int): Maximum number of tokens allowed
+            
+        Returns:
+            str: Truncated text if it exceeds token limit, original text otherwise
+        """
         try:
             # Encode the text to tokens
             tokens = self.tiktoken_encoder.encode(text)
@@ -154,7 +261,16 @@ class VectorEmbedder:
             return text
     
     def get_embedding(self, text: str) -> List[float]:
-        """Generate embedding vector for text using OpenAI API."""
+        """
+        Generate embedding vector for text using OpenAI API.
+        
+        Args:
+            text (str): Text to generate embedding for
+            
+        Returns:
+            List[float]: Vector embedding as a list of floats,
+                         or empty list if embedding generation fails
+        """
         try:
             model = self.config['openai']['model']
             max_tokens = self.config['openai'].get('maximum_tokens', 8192)
@@ -173,7 +289,22 @@ class VectorEmbedder:
             return []
     
     def process_file(self, file_path: Path) -> bool:
-        """Process a single file and store its embedding in ChromaDB."""
+        """
+        Process a single file and store its embedding in ChromaDB.
+        
+        This function:
+        1. Checks if the file is too large
+        2. Checks if the file has changed since last processing
+        3. Reads the file content
+        4. Generates embedding
+        5. Stores embedding and metadata in ChromaDB
+        
+        Args:
+            file_path (Path): Path to the file to process
+            
+        Returns:
+            bool: True if processing succeeded, False otherwise
+        """
         try:
             # Skip if file is too large
             max_size_kb = self.config['file_processing']['max_file_size_kb']
@@ -233,7 +364,18 @@ class VectorEmbedder:
             return False
     
     def _has_file_changed(self, file_path: Path, existing_record: Dict) -> bool:
-        """Check if a file has changed since it was last processed."""
+        """
+        Check if a file has changed since it was last processed.
+        
+        Compares the file's modification time with the stored metadata.
+        
+        Args:
+            file_path (Path): Path to the file
+            existing_record (Dict): Record retrieved from ChromaDB
+            
+        Returns:
+            bool: True if the file has changed, False otherwise
+        """
         if not existing_record['metadatas']:
             return True
             
@@ -241,7 +383,15 @@ class VectorEmbedder:
         return metadata.get('modified_time', 0) != file_path.stat().st_mtime
     
     def traverse_directories(self) -> Dict[str, int]:
-        """Traverse directories and process files."""
+        """
+        Traverse directories and process files.
+        
+        This function walks through the parent directory and its subdirectories,
+        identifying text files, and processing each one.
+        
+        Returns:
+            Dict[str, int]: Statistics about the processing operation
+        """
         stats = {
             "processed": 0,
             "skipped": 0,
@@ -282,7 +432,11 @@ class VectorEmbedder:
         return stats
 
 def main():
-    """Main entry point."""
+    """
+    Main entry point for the vector embedding process.
+    
+    Initializes the VectorEmbedder, traverses directories, and reports statistics.
+    """
     logger.info("Starting vector embedding process")
     embedder = VectorEmbedder()
     stats = embedder.traverse_directories()

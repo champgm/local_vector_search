@@ -3,6 +3,14 @@
 Clear Documents in ChromaDB Collection
 
 This script removes all documents from the ChromaDB collection without deleting the collection itself.
+This is useful when you want to refresh the document embeddings without losing the collection structure.
+
+Usage:
+    python clear_documents.py
+
+Requirements:
+    - ChromaDB (for vector storage)
+    - Configuration file (config.yaml) with ChromaDB settings
 """
 
 import yaml
@@ -23,7 +31,19 @@ logging.basicConfig(
 logger = logging.getLogger('clear_documents')
 
 def load_config(config_path: str = "config.yaml"):
-    """Load configuration from YAML file."""
+    """
+    Load configuration from YAML file.
+    
+    Args:
+        config_path (str): Path to the YAML configuration file
+                          Defaults to "config.yaml" in the current directory
+        
+    Returns:
+        dict: Configuration dictionary
+        
+    Raises:
+        SystemExit: If the file is not found or contains invalid YAML
+    """
     try:
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f)
@@ -37,7 +57,19 @@ def load_config(config_path: str = "config.yaml"):
         sys.exit(1)
 
 def clear_documents():
-    """Clear all documents in the ChromaDB collection."""
+    """
+    Clear all documents in the ChromaDB collection.
+    
+    This function:
+    1. Loads the configuration from config.yaml
+    2. Connects to the ChromaDB instance
+    3. Retrieves the specified collection
+    4. Gets all document IDs in the collection
+    5. Deletes all documents while preserving the collection structure
+    
+    Returns:
+        None
+    """
     config = load_config()
     
     try:
