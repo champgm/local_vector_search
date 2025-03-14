@@ -58,6 +58,49 @@ A utility script to completely reset the ChromaDB collection by deleting and rec
 python clear_db.py
 ```
 
+### `vector_search.py`
+
+A script for performing vector similarity searches on your embedded documents.
+
+**Features:**
+- Interactive prompt for entering search queries
+- Uses the same OpenAI embedding model for query embedding
+- Returns the most semantically similar documents
+- Displays relevance scores and document metadata
+
+**Usage:**
+```
+python vector_search.py
+```
+
+### `test_dependencies.py`
+
+A utility script to verify that all dependencies are working correctly.
+
+**Features:**
+- Tests importing all required packages
+- Verifies basic functionality of each dependency
+- Useful for debugging after updating dependencies
+
+**Usage:**
+```
+python test_dependencies.py
+```
+
+### `vacuum_db.py`
+
+A utility script to vacuum the SQLite database used by ChromaDB.
+
+**Features:**
+- Optimizes the database after upgrading ChromaDB versions
+- Rebuilds the database file to reclaim space
+- Useful when upgrading from ChromaDB versions below 0.5.6
+
+**Usage:**
+```
+python vacuum_db.py
+```
+
 ## Setup
 
 ### Virtual Environment
@@ -107,6 +150,21 @@ deactivate
    # Make sure your virtual environment is activated
    pip install -r requirements.txt
    ```
+
+## Dependencies
+
+This project uses the following dependencies:
+- ChromaDB 0.6.3 - Vector database for storing embeddings
+- OpenAI 1.12.0 - API client for generating embeddings
+- tiktoken 0.9.0 - Tokenizer for OpenAI models
+- PyYAML 6.0.1 - For configuration file parsing
+- tqdm 4.66.1 - For progress bars
+- python-dotenv 1.0.1 - For environment variable management
+
+To verify all dependencies are working correctly, run:
+```
+python test_dependencies.py
+```
 
 ## Configuration
 
