@@ -302,9 +302,16 @@ class VectorEmbedder:
             # Get the device from the model
             device = next(self.embedding_model.parameters()).device
             
+            # Get batch size from config (default to 32 if not specified)
+            batch_size = self.config['huggingface'].get('batch_size', 32)
+            
             # Generate embedding using Hugging Face model
             with torch.no_grad():
-                embedding = self.embedding_model.encode(truncated_text)
+                embedding = self.embedding_model.encode(
+                    truncated_text,
+                    batch_size=batch_size,
+                    show_progress_bar=False  # Explicitly disable progress bar
+                )
                 
             # Convert to list and return
             return embedding.tolist()
@@ -441,10 +448,23 @@ class VectorEmbedder:
                 if self._is_text_file(file_path):
                     all_files.append(file_path)
         
-        logger.info(f"Found {len(all_files)} text files to process")
+        total_files = len(all_files)
+        logger.info(f"Found {total_files} text files to process")
         
-        # Process files with progress bar
-        for file_path in tqdm(all_files, desc="Processing files"):
+        # Check if progress bars are enabled
+        show_progress = self.config['file_processing'].get('show_progress', True)
+        
+        # Process files with or without progress bar based on configuration
+        if show_progress:
+            # Use tqdm with progress bar
+            file_iterator = tqdm(all_files, desc="Processing files", unit="file")
+        else:
+            # Use regular iterator without progress bar, but log progress periodically
+            file_iterator = all_files
+            progress_interval = max(1, total_files // 20)  # Log progress every 5%
+        
+        # Process all files
+        for i, file_path in enumerate(file_iterator):
             stats["total"] += 1
             result = self.process_file(file_path)
             
@@ -452,6 +472,15 @@ class VectorEmbedder:
                 stats["processed"] += 1
             else:
                 stats["skipped"] += 1
+                
+            # If progress bars are disabled, log progress at intervals
+            if not show_progress and (i + 1) % progress_interval == 0:
+                percent_complete = (i + 1) / total_files * 100
+                logger.info(f"Progress: {i + 1}/{total_files} files ({percent_complete:.1f}%)")
+        
+        # Log final progress if progress bars are disabled
+        if not show_progress and total_files > 0 and (total_files % progress_interval) != 0:
+            logger.info(f"Progress: {total_files}/{total_files} files (100%)")
                 
         return stats
 
