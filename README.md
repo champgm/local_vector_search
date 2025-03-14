@@ -60,6 +60,38 @@ python clear_db.py
 
 ## Setup
 
+### Virtual Environment
+
+It's recommended to use a virtual environment to avoid conflicts with other Python projects:
+
+#### Windows
+
+```powershell
+# Create a virtual environment
+python -m venv venv
+
+# Activate the virtual environment
+venv\Scripts\activate
+
+# Deactivate when done
+deactivate
+```
+
+#### macOS/Linux
+
+```bash
+# Create a virtual environment
+python3 -m venv venv
+
+# Activate the virtual environment
+source venv/bin/activate
+
+# Deactivate when done
+deactivate
+```
+
+### Configuration
+
 1. Copy `config.template.yaml` to `config.yaml` and update it with your settings:
    ```
    cp config.template.yaml config.yaml
@@ -72,6 +104,7 @@ python clear_db.py
 
 3. Install the required dependencies:
    ```
+   # Make sure your virtual environment is activated
    pip install -r requirements.txt
    ```
 
