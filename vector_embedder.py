@@ -7,7 +7,7 @@ and stores them in a ChromaDB database for vector similarity search.
 
 Features:
 - Recursively traverses directories to process text files
-- Generates vector embeddings using OpenAI's embedding models
+- Generates vector embeddings using Hugging Face's embedding models
 - Stores embeddings in ChromaDB for efficient similarity search
 - Skips previously processed files that haven't changed
 - Configurable via YAML configuration file
@@ -16,7 +16,7 @@ Usage:
     python vector_embedder.py
 
 Requirements:
-    - OpenAI API key (configured in config.yaml)
+    - Hugging Face Transformers library
     - ChromaDB for vector storage
     - See requirements.txt for all dependencies
 """
@@ -29,7 +29,8 @@ import logging
 import hashlib
 import chromadb
 from tqdm import tqdm
-import openai
+import torch
+from sentence_transformers import SentenceTransformer
 import tiktoken
 from pathlib import Path
 from typing import Dict, List, Any, Set
@@ -49,11 +50,11 @@ class VectorEmbedder:
     Handles embedding generation and storage for files.
     
     This class is responsible for traversing directories, processing text files,
-    generating vector embeddings via OpenAI, and storing them in ChromaDB.
+    generating vector embeddings via Hugging Face, and storing them in ChromaDB.
     
     Attributes:
         config (dict): Configuration loaded from YAML file
-        openai_client: OpenAI client instance
+        embedding_model: Hugging Face embedding model instance
         chroma_client: ChromaDB client instance
         collection: ChromaDB collection for storing embeddings
         project_dir (Path): Current working directory
@@ -73,7 +74,7 @@ class VectorEmbedder:
             SystemExit: If the configuration file is missing or invalid
         """
         self.config = self._load_config(config_path)
-        self.openai_client = self._init_openai_client()
+        self.embedding_model = self._init_embedding_model()
         self.chroma_client, self.collection = self._init_chromadb()
         self.project_dir = Path.cwd()
         self.parent_dir = self.project_dir.parent
@@ -105,26 +106,36 @@ class VectorEmbedder:
             logger.error(f"Error parsing YAML configuration: {e}")
             sys.exit(1)
             
-    def _init_openai_client(self) -> Any:
+    def _init_embedding_model(self) -> Any:
         """
-        Initialize OpenAI client with API key from config.
+        Initialize Hugging Face embedding model.
         
         Returns:
-            Any: OpenAI client instance
+            Any: Hugging Face SentenceTransformer model instance
             
         Raises:
-            SystemExit: If the API key is missing or invalid
+            SystemExit: If model initialization fails
         """
         try:
-            api_key = self.config['openai']['api_key']
-            if api_key == "your-openai-api-key-here":
-                logger.error("Please update the OpenAI API key in config.yaml")
-                sys.exit(1)
-            # For OpenAI version 0.28.1
-            openai.api_key = api_key
-            return openai
+            model_name = self.config['huggingface']['model']
+            logger.info(f"Loading embedding model: {model_name}")
+            
+            # Check if CUDA (GPU) is available
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            logger.info(f"Using device: {device}")
+            
+            # Load the model
+            model = SentenceTransformer(model_name)
+            
+            # Move model to GPU if available
+            model = model.to(device)
+            
+            return model
         except KeyError:
-            logger.error("OpenAI API key not found in configuration")
+            logger.error("Hugging Face model name not found in configuration")
+            sys.exit(1)
+        except Exception as e:
+            logger.error(f"Error initializing Hugging Face model: {e}")
             sys.exit(1)
     
     def _init_chromadb(self):
@@ -154,6 +165,9 @@ class VectorEmbedder:
             except:
                 collection = client.create_collection(name=collection_name)
                 logger.info(f"Created new collection: {collection_name}")
+
+            # Before we start, let's vacuum the database
+            collection.vacuum()
                 
             return client, collection
         except Exception as e:
@@ -219,7 +233,7 @@ class VectorEmbedder:
             tiktoken.Encoding: Encoder instance for the specified model
         """
         try:
-            model = self.config['openai']['model']
+            model = self.config['huggingface']['model']
             # Get the encoding for the specified model
             return tiktoken.encoding_for_model(model)
         except Exception as e:
@@ -262,28 +276,29 @@ class VectorEmbedder:
     
     def get_embedding(self, text: str) -> List[float]:
         """
-        Generate embedding vector for text using OpenAI API.
+        Generate embedding vector for text using Hugging Face model.
         
         Args:
             text (str): Text to generate embedding for
             
         Returns:
-            List[float]: Vector embedding as a list of floats,
-                         or empty list if embedding generation fails
+            List[float]: Embedding vector
         """
         try:
-            model = self.config['openai']['model']
-            max_tokens = self.config['openai'].get('maximum_tokens', 8192)
+            max_tokens = self.config['huggingface'].get('maximum_tokens', 8192)
             
             # Truncate text to maximum token count
             truncated_text = self.truncate_text_by_tokens(text, max_tokens)
             
-            # For OpenAI version 0.28.1
-            response = self.openai_client.Embedding.create(
-                input=truncated_text, 
-                model=model
-            )
-            return response['data'][0]['embedding']
+            # Get the device from the model
+            device = next(self.embedding_model.parameters()).device
+            
+            # Generate embedding using Hugging Face model
+            with torch.no_grad():
+                embedding = self.embedding_model.encode(truncated_text)
+                
+            # Convert to list and return
+            return embedding.tolist()
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
             return []
@@ -327,7 +342,7 @@ class VectorEmbedder:
             
             # Log token count
             token_count = len(self.tiktoken_encoder.encode(content))
-            max_tokens = self.config['openai'].get('maximum_tokens', 8192)
+            max_tokens = self.config['huggingface'].get('maximum_tokens', 8192)
             if token_count > max_tokens:
                 logger.info(f"File will be truncated: {file_path} ({token_count} tokens > {max_tokens} max)")
             else:
@@ -437,6 +452,7 @@ def main():
     
     Initializes the VectorEmbedder, traverses directories, and reports statistics.
     """
+
     logger.info("Starting vector embedding process")
     embedder = VectorEmbedder()
     stats = embedder.traverse_directories()

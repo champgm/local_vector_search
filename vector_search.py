@@ -12,7 +12,8 @@ import sys
 import yaml
 import logging
 import chromadb
-import openai
+import torch
+from sentence_transformers import SentenceTransformer
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import tiktoken
@@ -33,7 +34,7 @@ class VectorSearch:
     def __init__(self, config_path: str = "config.yaml"):
         """Initialize with configuration from YAML file."""
         self.config = self._load_config(config_path)
-        self.openai_client = self._init_openai_client()
+        self.embedding_model = self._init_embedding_model()
         self.chroma_client, self.collection = self._init_chromadb()
         self.tiktoken_encoder = self._init_tiktoken_encoder()
         
@@ -52,18 +53,28 @@ class VectorSearch:
             logger.error(f"Error parsing YAML configuration: {e}")
             sys.exit(1)
             
-    def _init_openai_client(self) -> Any:
-        """Initialize OpenAI client with API key from config."""
+    def _init_embedding_model(self) -> Any:
+        """Initialize Hugging Face embedding model."""
         try:
-            api_key = self.config['openai']['api_key']
-            if api_key == "your-openai-api-key-here":
-                logger.error("Please update the OpenAI API key in config.yaml")
-                sys.exit(1)
-            # For OpenAI version 0.28.1
-            openai.api_key = api_key
-            return openai
+            model_name = self.config['huggingface']['model']
+            logger.info(f"Loading embedding model: {model_name}")
+            
+            # Check if CUDA (GPU) is available
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            logger.info(f"Using device: {device}")
+            
+            # Load the model
+            model = SentenceTransformer(model_name)
+            
+            # Move model to GPU if available
+            model = model.to(device)
+            
+            return model
         except KeyError:
-            logger.error("OpenAI API key not found in configuration")
+            logger.error("Hugging Face model name not found in configuration")
+            sys.exit(1)
+        except Exception as e:
+            logger.error(f"Error initializing Hugging Face model: {e}")
             sys.exit(1)
     
     def _init_chromadb(self):
@@ -90,9 +101,9 @@ class VectorSearch:
     def _init_tiktoken_encoder(self):
         """Initialize tiktoken encoder for token counting."""
         try:
-            model = self.config['openai']['model']
+            model = self.config['huggingface']['model']
             # Get the encoding for the specified model
-            return tiktoken.encoding_for_model(model)
+            return tiktoken.encoding_for_model("cl100k_base")  # Use cl100k_base as fallback for HF models
         except Exception as e:
             logger.warning(f"Could not get specific encoding for model {model}: {e}")
             # Fall back to cl100k_base encoding which is used by most newer models
@@ -121,20 +132,22 @@ class VectorSearch:
             return text
     
     def get_embedding(self, text: str) -> List[float]:
-        """Generate embedding vector for text using OpenAI API."""
+        """Generate embedding vector for text using Hugging Face model."""
         try:
-            model = self.config['openai']['model']
-            max_tokens = self.config['openai'].get('maximum_tokens', 8192)
+            max_tokens = self.config['huggingface'].get('maximum_tokens', 8192)
             
             # Truncate text to maximum token count
             truncated_text = self.truncate_text_by_tokens(text, max_tokens)
             
-            # For OpenAI version 0.28.1
-            response = self.openai_client.Embedding.create(
-                input=truncated_text, 
-                model=model
-            )
-            return response['data'][0]['embedding']
+            # Get the device from the model
+            device = next(self.embedding_model.parameters()).device
+            
+            # Generate embedding using Hugging Face model
+            with torch.no_grad():
+                embedding = self.embedding_model.encode(truncated_text)
+                
+            # Convert to list and return
+            return embedding.tolist()
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
             return []

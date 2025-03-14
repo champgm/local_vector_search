@@ -1,12 +1,12 @@
 # Local Vector Search
 
-A set of tools for creating and managing a local vector database of text documents using OpenAI embeddings and ChromaDB.
+A set of tools for creating and managing a local vector database of text documents using Hugging Face's SFR-Embedding-Mistral model and ChromaDB.
 
 ## Overview
 
 This project enables semantic search over your text documents by:
 1. Scanning directories for text files
-2. Generating vector embeddings using OpenAI's API
+2. Generating vector embeddings using Salesforce's SFR-Embedding-Mistral model
 3. Storing these embeddings in a local ChromaDB database
 4. Enabling vector similarity search
 
@@ -20,7 +20,7 @@ The main script for traversing directories, generating embeddings for text files
 
 **Features:**
 - Recursively traverses directories to process text files
-- Generates vector embeddings using OpenAI's embedding models
+- Generates vector embeddings using Salesforce's SFR-Embedding-Mistral model
 - Stores embeddings in ChromaDB for efficient similarity search
 - Skips previously processed files that haven't changed
 - Configurable via YAML configuration file
@@ -64,7 +64,7 @@ A script for performing vector similarity searches on your embedded documents.
 
 **Features:**
 - Interactive prompt for entering search queries
-- Uses the same OpenAI embedding model for query embedding
+- Uses the same Hugging Face embedding model for query embedding
 - Returns the most semantically similar documents
 - Displays relevance scores and document metadata
 
@@ -141,7 +141,6 @@ deactivate
    ```
 
 2. Update the configuration file with:
-   - Your OpenAI API key
    - ChromaDB storage location
    - File processing preferences (extensions, excluded directories, etc.)
 
@@ -155,8 +154,10 @@ deactivate
 
 This project uses the following dependencies:
 - ChromaDB 0.6.3 - Vector database for storing embeddings
-- OpenAI 1.12.0 - API client for generating embeddings
-- tiktoken 0.9.0 - Tokenizer for OpenAI models
+- Sentence Transformers 2.3.1 - For generating embeddings with Hugging Face models
+- Transformers 4.39.3 - Hugging Face's transformer models
+- PyTorch 2.2.1 - Deep learning framework
+- tiktoken 0.9.0 - Tokenizer for text models
 - PyYAML 6.0.1 - For configuration file parsing
 - tqdm 4.66.1 - For progress bars
 - python-dotenv 1.0.1 - For environment variable management
@@ -171,19 +172,18 @@ python test_dependencies.py
 The `config.yaml` file contains several important settings:
 
 ```yaml
-openai:
-  api_key: "your-openai-api-key-here"
-  model: "text-embedding-ada-002"
+huggingface:
+  model: "Salesforce/SFR-Embedding-Mistral"
   maximum_tokens: 8192
 
 chromadb:
   path: "./chroma_db"
-  collection_name: "document_embeddings"
+  collection_name: "file_embeddings"
 
 file_processing:
   text_extensions: [".txt", ".md", ".py", ".js", ".html", ".css", ".json", ".yaml", ".yml"]
   exclude_dirs: [".git", "__pycache__", "node_modules", "venv", ".venv", "env"]
-  max_file_size_kb: 1024
+  max_file_size_kb: 1024000
 ```
 
 ## License

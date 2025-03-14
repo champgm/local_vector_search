@@ -1,11 +1,11 @@
 # Configuration file for local vector search
 # Copy this file to config.yaml and update with your specific values
 
-# OpenAI API Configuration
-openai:
-  api_key: "your-openai-api-key-here"
-  model: "text-embedding-3-small"  # OpenAI embedding model to use
+# Embedding Model Configuration
+huggingface:
+  model: "Salesforce/SFR-Embedding-Mistral"  # Hugging Face embedding model to use
   maximum_tokens: 8192
+  # No API key required for local model inference
 
 # ChromaDB Configuration
 chromadb:
