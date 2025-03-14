@@ -276,7 +276,7 @@ class VectorEmbedder:
             truncated_tokens = tokens[:max_tokens]
             truncated_text = self.tiktoken_encoder.decode(truncated_tokens)
             
-            logger.info(f"Text truncated from {token_count} to {max_tokens} tokens")
+            # logger.info(f"Text truncated from {token_count} to {max_tokens} tokens")
             return truncated_text
         except Exception as e:
             logger.warning(f"Error during text truncation: {e}")
@@ -359,10 +359,10 @@ class VectorEmbedder:
             # Log token count
             token_count = len(self.tiktoken_encoder.encode(content))
             max_tokens = self.config['huggingface'].get('maximum_tokens', 8192)
-            if token_count > max_tokens:
-                logger.info(f"File will be truncated: {file_path} ({token_count} tokens > {max_tokens} max)")
-            else:
-                logger.debug(f"File token count: {file_path} ({token_count} tokens)")
+            # if token_count > max_tokens:
+            #     logger.info(f"File will be truncated: {file_path} ({token_count} tokens > {max_tokens} max)")
+            # else:
+            #     logger.debug(f"File token count: {file_path} ({token_count} tokens)")
             
             # Generate embedding
             embedding = self.get_embedding(content)
